@@ -1,0 +1,75 @@
+---
+layout: post
+title: "CVE-"
+category: security
+tags: [JS, off-by-one, api]
+---
+
+JS optimizers use expected type information on the return values of functions to find expected ranges of variables.
+This information is used to determine where bounds checking is needed and where is can be removed to optimize for speed.
+The type checker example below comes from chromium v8.
+
+```js
+Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
+  if (fun->IsHeapConstant() && fun->AsHeapConstant()->Value()->IsJSFunction()) {
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(fun->AsHeapConstant()->Value());
+    if (function->shared()->HasBuiltinFunctionId()) {
+      switch (function->shared()->builtin_function_id()) {
+        case kMathRandom:
+          return Type::PlainNumber();
+        ...
+        // String functions.
+        case kStringCharCodeAt:
+          return Type::Union(Type::Range(0, kMaxUInt16, t->zone()), Type::NaN(),
+                             t->zone());
+        case kStringCharAt:
+          return Type::String();
+        case kStringCodePointAt:
+          return Type::Union(Type::Range(0.0, String::kMaxCodePoint, t->zone()),
+                             Type::Undefined(), t->zone());
+        case kStringConcat:
+        case kStringFromCharCode:
+        case kStringFromCodePoint:
+          return Type::String();
+        case kStringIndexOf:
+        case kStringLastIndexOf:
+          return Type::Range(-1.0, String::kMaxLength - 1.0, t->zone());
+        case kStringEndsWith:
+        case kStringIncludes:
+          return Type::Boolean();
+        case kStringRaw:
+        case kStringRepeat:
+        case kStringSlice:
+          return Type::String();
+        case kStringStartsWith:
+          return Type::Boolean();
+        ...
+       default:
+          break;
+      }
+    }
+  }
+  return Type::NonInternal();
+}
+```
+
+# Refs
+- https://twitter.com/_tsuro/status/942759443787386885
+- https://bugs.chromium.org/p/chromium/issues/detail?id=762874
+- https://saelo.github.io/presentations/blackhat_us_18_attacking_client_side_jit_compilers.pdf
+- CVE-2018-8505
+
+# Tags
+#JS, #intissues, #off-by-one, #api, #strings
+
+# Explanation
+What is returned in this case:
+``` js
+"abcd".LastIndexOf("")
+```
+The value returned is 4 as it matches the terminating null of the string.
+
+Consult the API for string.LastIndexOf() and it says that it should return: `The index of the last occurrence of the specified value; -1 if not found.`
+
+The type checker code assumed the bounds to be (-1, MaxLength - 1.0) while they are actually (-1, MaxLength). This leads to an off-by-one error that allows for out-of-bounds memory access.
