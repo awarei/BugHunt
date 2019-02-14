@@ -1,0 +1,2 @@
+# BugHunt
+bug reports
