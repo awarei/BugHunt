@@ -1,0 +1,12 @@
+---
+layout: default
+title: BugHunt Reports
+---
+<h1>{{ page.title }}</h1>
+<ul class="reports">
+
+  {% for report in site.reports %}
+    <li><span>{{ report.date | date_to_string }}</span> &raquo; <a href="{{ report.url }}" title="{{ report.title }}">{{ report.title }}</a></li>
+  {% endfor %}
+    
+</ul>

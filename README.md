@@ -1,3 +1,1 @@
-#
-
-[test.md](test.md)
+BugHunt is a collection of bug reports.
