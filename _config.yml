@@ -1,1 +1,8 @@
-theme: jekyll-theme-slate
+# site.[]
+url: "https://awarei.github.io/BugHunt"
+author: awarei
+title:  BugHunt
+
+markdown: kramdown
+permalink: /blog/:year/:month/:day/:title
+
