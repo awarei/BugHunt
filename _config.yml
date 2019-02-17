@@ -4,8 +4,9 @@ author: awarei
 title:  BugHunt
 
 markdown: kramdown
-permalink: /:title
+permalink: /posts:title
 
 collections:
   reports:
     output: true
+    permalink: /reports/:path/
