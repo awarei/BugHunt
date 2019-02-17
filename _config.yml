@@ -1,10 +1,11 @@
 # site.[]
 url: "https://awarei.github.io/BugHunt"
+project: "BugHunt"
 author: awarei
 title:  BugHunt
 
 markdown: kramdown
-permalink: /BugHunt/blog/:title
+permalink: /BugHunt/blog/:year/:month/:day/:title
 
 collections:
   reports:
