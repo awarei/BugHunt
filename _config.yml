@@ -1,5 +1,6 @@
 # site.[]
 url: "https://awarei.github.io/BugHunt"
+baseurl: /BugHunt
 project: "BugHunt"
 author: awarei
 title:  BugHunt
