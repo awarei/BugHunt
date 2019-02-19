@@ -7,10 +7,8 @@ title: BugHunt Blog
 
   {% for post in site.posts %}
     <li>
-      <a href="{{ post.url | absolute_url }}" title="{{ post.title }}">{{ post.title }}</a>
+        <a href="{{ post.url | relative_url }}" title="{{ post.title }}">{{ post.title }}</a>
       <span>{{ post.date | date_to_string }}</span>
-      <a href="{{ post.url | relative_url }}" title="{{ post.title }}">{{ post.title }}</a>
-      <a href="{{ site.baseurl}}{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a>
     </li>
   {% endfor %}
     
