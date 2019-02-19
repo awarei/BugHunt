@@ -1,10 +1,11 @@
 # site.[]
 url: "https://awarei.github.io/BugHunt"
-baseurl: /BugHunt
+baseurl: "/BugHunt"
 project: "BugHunt"
 author: awarei
 title:  BugHunt
 
+theme: minima
 markdown: kramdown
 permalink: /blog/:year/:month/:day/:title
 
