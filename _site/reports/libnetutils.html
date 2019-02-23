@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Android libnetutils packet.c</title>
+    <link rel="stylesheet" type="text/css" href="/BugHunt/css/main.css">
+  </head>
+  <body>
+    <nav>
+<ul>
+<li><a href="/BugHunt">Home</a></li>
+<li><a href="/BugHunt/blog">Blog</a></li>
+<li><a href="/BugHunt/reports">Reports</a></li>
+</ul>
+    </nav>
+<div class="container">
+
+  <h1>Android libnetutils packet.c</h1>
+<p class="meta">23 Feb 2019</p>
+
+<div class="post">
+  <h1 id="exercise">Exercise</h1>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">receive_packet</span><span class="p">(</span><span class="kt">int</span> <span class="n">s</span><span class="p">,</span> <span class="k">struct</span> <span class="n">dhcp_msg</span> <span class="o">*</span><span class="n">msg</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">nread</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">is_valid</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">dhcp_packet</span> <span class="p">{</span>
+        <span class="k">struct</span> <span class="n">iphdr</span> <span class="n">ip</span><span class="p">;</span>
+        <span class="k">struct</span> <span class="n">udphdr</span> <span class="n">udp</span><span class="p">;</span>
+        <span class="k">struct</span> <span class="n">dhcp_msg</span> <span class="n">dhcp</span><span class="p">;</span>
+    <span class="p">}</span> <span class="n">packet</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">dhcp_size</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">sum</span><span class="p">;</span>
+    <span class="kt">uint16_t</span> <span class="n">temp</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">saddr</span><span class="p">,</span> <span class="n">daddr</span><span class="p">;</span>
+    <span class="n">nread</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">packet</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">packet</span><span class="p">));</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">nread</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="cm">/*
+     * The raw packet interface gives us all packets received by the
+     * network interface. We need to filter out all packets that are
+     * not meant for us.
+     */</span>
+    <span class="n">is_valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">nread</span> <span class="o">&lt;</span> <span class="p">(</span><span class="kt">int</span><span class="p">)(</span><span class="k">sizeof</span><span class="p">(</span><span class="k">struct</span> <span class="n">iphdr</span><span class="p">)</span> <span class="o">+</span> <span class="k">sizeof</span><span class="p">(</span><span class="k">struct</span> <span class="n">udphdr</span><span class="p">)))</span> <span class="p">{</span>
+<span class="cp">#if VERBOSE
+</span>        <span class="n">ALOGD</span><span class="p">(</span><span class="s">"Packet is too small (%d) to be a UDP datagram"</span><span class="p">,</span> <span class="n">nread</span><span class="p">);</span>
+<span class="cp">#endif
+</span>    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">version</span> <span class="o">!=</span> <span class="n">IPVERSION</span> <span class="o">||</span> <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">ihl</span> <span class="o">!=</span> <span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">2</span><span class="p">))</span> <span class="p">{</span>
+<span class="cp">#if VERBOSE
+</span>        <span class="n">ALOGD</span><span class="p">(</span><span class="s">"Not a valid IP packet"</span><span class="p">);</span>
+<span class="cp">#endif
+</span>    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">nread</span> <span class="o">&lt;</span> <span class="n">ntohs</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">tot_len</span><span class="p">))</span> <span class="p">{</span>
+<span class="cp">#if VERBOSE
+</span>        <span class="n">ALOGD</span><span class="p">(</span><span class="s">"Packet was truncated (read %d, needed %d)"</span><span class="p">,</span> <span class="n">nread</span><span class="p">,</span> <span class="n">ntohs</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">tot_len</span><span class="p">));</span>
+<span class="cp">#endif
+</span>    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">protocol</span> <span class="o">!=</span> <span class="n">IPPROTO_UDP</span><span class="p">)</span> <span class="p">{</span>
+<span class="cp">#if VERBOSE
+</span>        <span class="n">ALOGD</span><span class="p">(</span><span class="s">"IP protocol (%d) is not UDP"</span><span class="p">,</span> <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">protocol</span><span class="p">);</span>
+<span class="cp">#endif
+</span>    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">udp</span><span class="p">.</span><span class="n">dest</span> <span class="o">!=</span> <span class="n">htons</span><span class="p">(</span><span class="n">PORT_BOOTP_CLIENT</span><span class="p">))</span> <span class="p">{</span>
+<span class="cp">#if VERBOSE
+</span>        <span class="n">ALOGD</span><span class="p">(</span><span class="s">"UDP dest port (%d) is not DHCP client"</span><span class="p">,</span> <span class="n">ntohs</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">udp</span><span class="p">.</span><span class="n">dest</span><span class="p">));</span>
+<span class="cp">#endif
+</span>    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">is_valid</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">is_valid</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="cm">/* Seems like it's probably a valid DHCP packet */</span>
+    <span class="cm">/* validate IP header checksum */</span>
+    <span class="n">sum</span> <span class="o">=</span> <span class="n">finish_sum</span><span class="p">(</span><span class="n">checksum</span><span class="p">(</span><span class="o">&amp;</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">),</span> <span class="mi">0</span><span class="p">));</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">sum</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">ALOGW</span><span class="p">(</span><span class="s">"IP header checksum failure (0x%x)"</span><span class="p">,</span> <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">check</span><span class="p">);</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="cm">/*
+     * Validate the UDP checksum.
+     * Since we don't need the IP header anymore, we "borrow" it
+     * to construct the pseudo header used in the checksum calculation.
+     */</span>
+    <span class="n">dhcp_size</span> <span class="o">=</span> <span class="n">ntohs</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">udp</span><span class="p">.</span><span class="n">len</span><span class="p">)</span> <span class="o">-</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">udp</span><span class="p">);</span>
+    <span class="n">saddr</span> <span class="o">=</span> <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">saddr</span><span class="p">;</span>
+    <span class="n">daddr</span> <span class="o">=</span> <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">daddr</span><span class="p">;</span>
+    <span class="n">nread</span> <span class="o">=</span> <span class="n">ntohs</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">tot_len</span><span class="p">);</span>
+    <span class="n">memset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">));</span>
+    <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">saddr</span> <span class="o">=</span> <span class="n">saddr</span><span class="p">;</span>
+    <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">daddr</span> <span class="o">=</span> <span class="n">daddr</span><span class="p">;</span>
+    <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">protocol</span> <span class="o">=</span> <span class="n">IPPROTO_UDP</span><span class="p">;</span>
+    <span class="n">packet</span><span class="p">.</span><span class="n">ip</span><span class="p">.</span><span class="n">tot_len</span> <span class="o">=</span> <span class="n">packet</span><span class="p">.</span><span class="n">udp</span><span class="p">.</span><span class="n">len</span><span class="p">;</span>
+    <span class="n">temp</span> <span class="o">=</span> <span class="n">packet</span><span class="p">.</span><span class="n">udp</span><span class="p">.</span><span class="n">check</span><span class="p">;</span>
+    <span class="n">packet</span><span class="p">.</span><span class="n">udp</span><span class="p">.</span><span class="n">check</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">sum</span> <span class="o">=</span> <span class="n">finish_sum</span><span class="p">(</span><span class="n">checksum</span><span class="p">(</span><span class="o">&amp;</span><span class="n">packet</span><span class="p">,</span> <span class="n">nread</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+    <span class="n">packet</span><span class="p">.</span><span class="n">udp</span><span class="p">.</span><span class="n">check</span> <span class="o">=</span> <span class="n">temp</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">sum</span><span class="p">)</span>
+        <span class="n">sum</span> <span class="o">=</span> <span class="n">finish_sum</span><span class="p">(</span><span class="n">sum</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">temp</span> <span class="o">!=</span> <span class="n">sum</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">ALOGW</span><span class="p">(</span><span class="s">"UDP header checksum failure (0x%x should be 0x%x)"</span><span class="p">,</span> <span class="n">sum</span><span class="p">,</span> <span class="n">temp</span><span class="p">);</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">memcpy</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">packet</span><span class="p">.</span><span class="n">dhcp</span><span class="p">,</span> <span class="n">dhcp_size</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">dhcp_size</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h1 id="explanation">Explanation</h1>
+<p>There is an integer underflow due to subtraction operation.</p>
+
+<h1 id="refs">Refs</h1>
+<ul>
+  <li><a href="https://android.googlesource.com/platform/system/core/+/b71335264a7c3629f80b7bf1f87375c75c42d868%5E%21/#F0">https://android.googlesource.com/platform/system/core/+/b71335264a7c3629f80b7bf1f87375c75c42d868%5E%21/#F0</a></li>
+  <li><a href="https://source.android.com/security/bulletin/2018-01-01">https://source.android.com/security/bulletin/2018-01-01</a></li>
+  <li>CVE-2017-13208</li>
+</ul>
+
+</div>
+
+
+</div>
+  
+  <footer>
+   <ul>
+   <li><a href=http://0.0.0.0:4000>BugHunt</a></li>
+   </ul>
+  </footer>
+  </body>
+
+</html>
